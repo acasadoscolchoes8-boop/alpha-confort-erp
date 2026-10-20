@@ -5,8 +5,8 @@ import { useStore, type StatusEntrega } from '@/lib/store'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Calendar } from '@/components/ui/calendar'
-import { Truck, Clock, MapPin, CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import { DayPicker } from 'react-day-picker'
+import { Truck, Clock, MapPin, CheckCircle, XCircle, Loader2, CalendarDays, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -40,22 +40,46 @@ export function Entregas() {
         <Card>
           <CardHeader>
             <CardTitle className="text-[#1E3A5F] flex items-center gap-2 text-base">
-              <Calendar className="w-4 h-4" />
+              <CalendarDays className="w-4 h-4" />
               Calendário
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <Calendar
-              mode="single"
-              selected={dataSel}
-              onSelect={(d) => d && setDataSel(d)}
-              modifiers={{ hasEvent: datasComEntrega }}
-              modifiersClassnames={{
-                hasEvent: 'bg-[#D69E2E]/30 font-bold',
-              }}
-              className="rounded-md border-0"
-              locale={ptBR}
-            />
+          <CardContent className="flex justify-center">
+            <div className="rdp-wrapper w-full">
+              <DayPicker
+                mode="single"
+                selected={dataSel}
+                onSelect={(d) => d && setDataSel(d)}
+                modifiers={{ hasEvent: datasComEntrega }}
+                modifiersClassNames={{
+                  hasEvent: 'bg-[#D69E2E]/30 font-bold',
+                }}
+                locale={ptBR}
+                className="mx-auto"
+                classNames={{
+                  months: 'flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0',
+                  month: 'space-y-4',
+                  caption: 'flex justify-center pt-1 relative items-center',
+                  caption_label: 'text-sm font-medium',
+                  nav: 'space-x-1 flex items-center',
+                  nav_button: 'h-7 w-7 inline-flex items-center justify-center rounded-md border border-gray-200 bg-white p-0 opacity-70 hover:opacity-100',
+                  nav_button_previous: 'absolute left-1',
+                  nav_button_next: 'absolute right-1',
+                  table: 'w-full border-collapse space-y-1',
+                  head_row: 'flex',
+                  head_cell: 'text-muted-foreground rounded-md w-8 font-normal text-[0.8rem]',
+                  row: 'flex w-full mt-2',
+                  cell: 'h-8 w-8 text-center text-sm p-0 relative focus-within:relative focus-within:z-20',
+                  day: 'h-8 w-8 p-0 font-normal aria-selected:opacity-100',
+                  day_selected: 'bg-[#1E3A5F] text-white hover:bg-[#1E3A5F] hover:text-white focus:bg-[#1E3A5F] focus:text-white',
+                  day_today: 'bg-gray-100 text-gray-900',
+                  day_outside: 'text-muted-foreground opacity-50',
+                  day_disabled: 'text-muted-foreground opacity-50',
+                  day_range_middle: 'aria-selected:bg-accent aria-selected:text-accent-foreground',
+                  day_hidden: 'invisible',
+                }}
+              />
+            </div>
           </CardContent>
         </Card>
 

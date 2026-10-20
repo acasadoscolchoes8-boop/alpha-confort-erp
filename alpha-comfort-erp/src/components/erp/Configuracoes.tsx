@@ -1,78 +1,149 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useStore } from '@/lib/store'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import { Users, Save, Building } from 'lucide-react'
+import { Save, Building, Upload, Trash2, Image as ImageIcon, Loader2, Check } from 'lucide-react'
 import { toast } from 'sonner'
 
 export function Configuracoes() {
-  const usuarios = useStore(s => s.usuarios)
-  const usuarioLogado = useStore(s => s.usuarioLogado)
-  const [config, setConfig] = useState({
-    nomeEmpresa: 'Alpha Comfort Colchões',
-    cnpj: '12.345.678/0001-90',
-    inscricaoEstadual: '123.456.789.000',
-    cep: '01001-000',
-    rua: 'Rua das Colchas, 123',
-    cidade: 'São Paulo',
-    estado: 'SP',
-    telefone: '(11) 3000-0000',
-    email: 'contato@alphacomfort.com.br',
-    webmaniaKey: '',
-    webmaniaSecret: '',
-  })
+  const { dadosEmpresa, updateDadosEmpresa } = useStore()
+  const [form, setForm] = useState(dadosEmpresa)
+  const [uploading, setUploading] = useState(false)
+  const [webmaniaKey, setWebmaniaKey] = useState('')
+  const [webmaniaSecret, setWebmaniaSecret] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleUploadLogo = (file: File) => {
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      toast.error('Selecione um arquivo de imagem (PNG, JPG, SVG)')
+      return
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Imagem muito grande. Máximo 2MB.')
+      return
+    }
+
+    setUploading(true)
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const result = e.target?.result as string
+      setForm({ ...form, logo: result })
+      updateDadosEmpresa({ logo: result })
+      setUploading(false)
+      toast.success('Logo carregada com sucesso!')
+    }
+    reader.onerror = () => {
+      setUploading(false)
+      toast.error('Erro ao carregar a imagem.')
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const removerLogo = () => {
+    setForm({ ...form, logo: '' })
+    updateDadosEmpresa({ logo: '' })
+    toast.success('Logo removida')
+  }
 
   const salvar = () => {
-    toast.success('Configurações salvas (demo)')
+    updateDadosEmpresa(form)
+    toast.success('Configurações salvas com sucesso!')
   }
 
   return (
     <div className="space-y-4">
-      {/* Usuários */}
+      {/* Logo da Empresa */}
       <Card>
         <CardHeader>
           <CardTitle className="text-[#1E3A5F] flex items-center gap-2">
-            <Users className="w-5 h-5" />
-            Usuários do Sistema
+            <ImageIcon className="w-5 h-5" />
+            Logotipo da Empresa
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            {usuarios.map(u => (
-              <div key={u.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${
-                    u.role === 'admin' ? 'bg-[#1E3A5F] text-white' : 'bg-[#D69E2E] text-[#1E3A5F]'
-                  }`}>
-                    {u.nome.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="font-medium">{u.nome}</p>
-                    <p className="text-sm text-gray-500">{u.email}</p>
-                  </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+            {/* Preview da logo */}
+            <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 min-h-[140px]">
+              {form.logo ? (
+                <img
+                  src={form.logo}
+                  alt="Logo da empresa"
+                  className="max-h-24 max-w-full object-contain"
+                />
+              ) : (
+                <div className="text-center text-gray-400">
+                  <ImageIcon className="w-12 h-12 mx-auto mb-2 opacity-40" />
+                  <p className="text-xs">Sem logo cadastrada</p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Badge className={u.role === 'admin' ? 'bg-[#1E3A5F] text-white' : 'bg-[#D69E2E] text-[#1E3A5F]'}>
-                    {u.role === 'admin' ? 'Administrador' : 'Vendedor'}
-                  </Badge>
-                  {u.id === usuarioLogado?.id && (
-                    <span className="text-xs text-gray-500">(você)</span>
+              )}
+            </div>
+
+            {/* Ações */}
+            <div className="md:col-span-2 space-y-3">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp"
+                className="hidden"
+                onChange={e => {
+                  const file = e.target.files?.[0]
+                  if (file) handleUploadLogo(file)
+                  e.target.value = ''
+                }}
+              />
+
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="bg-[#1E3A5F] hover:bg-[#2C5282]"
+                >
+                  {uploading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Carregando...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4 mr-2" />
+                      Enviar Logo
+                    </>
                   )}
-                </div>
+                </Button>
+                {form.logo && (
+                  <Button
+                    onClick={removerLogo}
+                    variant="outline"
+                    className="text-red-600 border-red-200 hover:bg-red-50"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Remover
+                  </Button>
+                )}
               </div>
-            ))}
-          </div>
-          <div className="mt-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
-            <strong>Permissões:</strong>
-            <ul className="list-disc list-inside mt-1 space-y-0.5 text-xs">
-              <li><strong>Admin</strong>: acesso total (dashboard, clientes, produtos, estoque, pedidos, entregas, NF-e, configurações)</li>
-              <li><strong>Vendedor</strong>: apenas pedidos, estoque e entregas</li>
-            </ul>
+
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
+                <p className="font-semibold mb-1">📐 Especificações recomendadas:</p>
+                <ul className="list-disc list-inside space-y-0.5">
+                  <li>Formato: <strong>PNG</strong> (com fundo transparente) ou <strong>SVG</strong></li>
+                  <li>Tamanho ideal: <strong>200x60 pixels</strong> (formato horizontal)</li>
+                  <li>Tamanho máximo do arquivo: <strong>2 MB</strong></li>
+                  <li>A logo aparece no: <strong>menu lateral</strong>, <strong>impressão de pedidos</strong> e <strong>página de aceite do cliente</strong></li>
+                </ul>
+              </div>
+
+              {form.logo && (
+                <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded text-xs text-green-700">
+                  <Check className="w-4 h-4" />
+                  <span>Logo carregada e aplicada em todo o sistema!</span>
+                </div>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -89,39 +160,47 @@ export function Configuracoes() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Razão Social</Label>
-              <Input value={config.nomeEmpresa} onChange={e => setConfig({ ...config, nomeEmpresa: e.target.value })} />
+              <Input value={form.nomeEmpresa} onChange={e => setForm({ ...form, nomeEmpresa: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label>CNPJ</Label>
-              <Input value={config.cnpj} onChange={e => setConfig({ ...config, cnpj: e.target.value })} />
+              <Input value={form.cnpj} onChange={e => setForm({ ...form, cnpj: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label>Inscrição Estadual</Label>
-              <Input value={config.inscricaoEstadual} onChange={e => setConfig({ ...config, inscricaoEstadual: e.target.value })} />
+              <Input value={form.inscricaoEstadual} onChange={e => setForm({ ...form, inscricaoEstadual: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label>CEP</Label>
-              <Input value={config.cep} onChange={e => setConfig({ ...config, cep: e.target.value })} />
+              <Input value={form.cep} onChange={e => setForm({ ...form, cep: e.target.value })} />
             </div>
             <div className="space-y-2 md:col-span-2">
-              <Label>Endereço</Label>
-              <Input value={config.rua} onChange={e => setConfig({ ...config, rua: e.target.value })} />
+              <Label>Rua</Label>
+              <Input value={form.rua} onChange={e => setForm({ ...form, rua: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Número</Label>
+              <Input value={form.numero} onChange={e => setForm({ ...form, numero: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Bairro</Label>
+              <Input value={form.bairro} onChange={e => setForm({ ...form, bairro: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label>Cidade</Label>
-              <Input value={config.cidade} onChange={e => setConfig({ ...config, cidade: e.target.value })} />
+              <Input value={form.cidade} onChange={e => setForm({ ...form, cidade: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label>Estado</Label>
-              <Input value={config.estado} onChange={e => setConfig({ ...config, estado: e.target.value.toUpperCase().slice(0, 2) })} maxLength={2} />
+              <Input value={form.estado} onChange={e => setForm({ ...form, estado: e.target.value.toUpperCase().slice(0, 2) })} maxLength={2} />
             </div>
             <div className="space-y-2">
               <Label>Telefone</Label>
-              <Input value={config.telefone} onChange={e => setConfig({ ...config, telefone: e.target.value })} />
+              <Input value={form.telefone} onChange={e => setForm({ ...form, telefone: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label>Email</Label>
-              <Input value={config.email} onChange={e => setConfig({ ...config, email: e.target.value })} />
+              <Input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
             </div>
           </div>
         </CardContent>
@@ -137,8 +216,8 @@ export function Configuracoes() {
             <div className="space-y-2">
               <Label>Consumer Key</Label>
               <Input
-                value={config.webmaniaKey}
-                onChange={e => setConfig({ ...config, webmaniaKey: e.target.value })}
+                value={webmaniaKey}
+                onChange={e => setWebmaniaKey(e.target.value)}
                 placeholder="Cole sua chave aqui"
                 type="password"
               />
@@ -146,8 +225,8 @@ export function Configuracoes() {
             <div className="space-y-2">
               <Label>Consumer Secret</Label>
               <Input
-                value={config.webmaniaSecret}
-                onChange={e => setConfig({ ...config, webmaniaSecret: e.target.value })}
+                value={webmaniaSecret}
+                onChange={e => setWebmaniaSecret(e.target.value)}
                 placeholder="Cole sua chave aqui"
                 type="password"
               />
