@@ -1,10 +1,11 @@
 'use client'
 
 import { useStore } from '@/lib/store'
-import { BedDouble, LayoutDashboard, Users, Package, Boxes, ShoppingCart, Truck, FileText, LogOut, User } from 'lucide-react'
+import { BedDouble, LayoutDashboard, Users, Package, Boxes, ShoppingCart, Truck, FileText, LogOut, User, BarChart3, Globe, DollarSign, Shield } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { Notificacoes } from './Notificacoes'
 
 export type Pagina =
   | 'dashboard'
@@ -14,6 +15,10 @@ export type Pagina =
   | 'estoque'
   | 'entregas'
   | 'notas'
+  | 'relatorios'
+  | 'marketplaces'
+  | 'financeiro'
+  | 'usuarios'
   | 'config'
 
 interface MenuItem {
@@ -31,6 +36,10 @@ const menuItens: MenuItem[] = [
   { id: 'estoque', label: 'Estoque', icon: Boxes },
   { id: 'entregas', label: 'Entregas', icon: Truck },
   { id: 'notas', label: 'Notas Fiscais', icon: FileText, adminOnly: true },
+  { id: 'marketplaces', label: 'Marketplaces', icon: Globe, adminOnly: true },
+  { id: 'financeiro', label: 'Financeiro', icon: DollarSign, adminOnly: true },
+  { id: 'relatorios', label: 'Relatórios', icon: BarChart3, adminOnly: true },
+  { id: 'usuarios', label: 'Usuários', icon: Shield, adminOnly: true },
   { id: 'config', label: 'Configurações', icon: User, adminOnly: true },
 ]
 
@@ -43,6 +52,7 @@ interface LayoutProps {
 export function Layout({ pagina, setPagina, children }: LayoutProps) {
   const usuario = useStore(s => s.usuarioLogado)
   const logout = useStore(s => s.logout)
+  const dadosEmpresa = useStore(s => s.dadosEmpresa)
 
   if (!usuario) return null
 
@@ -50,15 +60,20 @@ export function Layout({ pagina, setPagina, children }: LayoutProps) {
 
   return (
     <div className="min-h-screen flex bg-gray-50">
-      {/* Sidebar */}
       <aside className="w-64 bg-[#1E3A5F] text-white flex flex-col fixed h-screen">
         <div className="p-5 border-b border-white/10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#D69E2E] rounded-lg flex items-center justify-center">
-              <BedDouble className="w-6 h-6 text-[#1E3A5F]" />
-            </div>
+            {dadosEmpresa?.logo ? (
+              <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0 p-1">
+                <img src={dadosEmpresa.logo} alt={dadosEmpresa.nomeEmpresa} className="max-w-full max-h-full object-contain" />
+              </div>
+            ) : (
+              <div className="w-10 h-10 bg-[#D69E2E] rounded-lg flex items-center justify-center flex-shrink-0">
+                <BedDouble className="w-6 h-6 text-[#1E3A5F]" />
+              </div>
+            )}
             <div>
-              <h1 className="font-bold text-sm">Alpha Comfort</h1>
+              <h1 className="font-bold text-sm">{dadosEmpresa?.nomeEmpresa || 'Alpha Comfort'}</h1>
               <p className="text-xs text-white/60">ERP Colchões</p>
             </div>
           </div>
@@ -111,14 +126,18 @@ export function Layout({ pagina, setPagina, children }: LayoutProps) {
         </div>
       </aside>
 
-      {/* Conteúdo */}
       <div className="flex-1 ml-64">
         <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-6 sticky top-0 z-10">
           <h2 className="text-lg font-semibold text-[#1E3A5F] capitalize">
             {menuItens.find(i => i.id === pagina)?.label}
           </h2>
-          <div className="text-sm text-gray-500">
-            {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-gray-500 hidden sm:block">
+              {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </div>
+            {usuario.role === 'admin' && (
+              <Notificacoes onNavigate={(p) => setPagina(p as Pagina)} />
+            )}
           </div>
         </header>
         <main className="p-6">

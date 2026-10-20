@@ -12,6 +12,10 @@ import { Estoque } from '@/components/erp/Estoque'
 import { Pedidos } from '@/components/erp/Pedidos'
 import { Entregas } from '@/components/erp/Entregas'
 import { NotasFiscais } from '@/components/erp/NotasFiscais'
+import { Relatorios } from '@/components/erp/Relatorios'
+import { Marketplaces } from '@/components/erp/Marketplaces'
+import { Financeiro } from '@/components/erp/Financeiro'
+import { Usuarios } from '@/components/erp/Usuarios'
 import { Configuracoes } from '@/components/erp/Configuracoes'
 
 export default function Home() {
@@ -27,15 +31,9 @@ export default function Home() {
     )
   }
 
-  // Se for vendedor, começa em pedidos
-  const paginaInicialVendedor: Pagina = 'pedidos'
-  if (usuario.role === 'vendedor' && (pagina === 'dashboard' || pagina === 'clientes' || pagina === 'produtos' || pagina === 'notas' || pagina === 'config')) {
-    setPagina(paginaInicialVendedor)
-    return null
-  }
+  // Páginas que vendedor não pode acessar
+  const paginasAdmin: Pagina[] = ['dashboard', 'clientes', 'produtos', 'notas', 'relatorios', 'marketplaces', 'financeiro', 'usuarios', 'config']
 
-  // Garantir que vendedor não acesse página admin
-  const paginasAdmin: Pagina[] = ['dashboard', 'clientes', 'produtos', 'notas', 'config']
   if (usuario.role === 'vendedor' && paginasAdmin.includes(pagina)) {
     setPagina('pedidos')
     return null
@@ -51,6 +49,10 @@ export default function Home() {
         {pagina === 'estoque' && <Estoque />}
         {pagina === 'entregas' && <Entregas />}
         {pagina === 'notas' && usuario.role === 'admin' && <NotasFiscais />}
+        {pagina === 'marketplaces' && usuario.role === 'admin' && <Marketplaces />}
+        {pagina === 'financeiro' && usuario.role === 'admin' && <Financeiro />}
+        {pagina === 'relatorios' && usuario.role === 'admin' && <Relatorios />}
+        {pagina === 'usuarios' && usuario.role === 'admin' && <Usuarios />}
         {pagina === 'config' && usuario.role === 'admin' && <Configuracoes />}
       </Layout>
       <Toaster />

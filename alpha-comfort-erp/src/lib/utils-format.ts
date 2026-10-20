@@ -68,3 +68,56 @@ export async function buscarCep(cep: string): Promise<ViaCepResponse | null> {
     return null
   }
 }
+
+// ====== Cálculo de taxas de cartão e lucro líquido ======
+export interface ResultadoTaxa {
+  taxaPercentual: number
+  valorTaxa: number
+  valorLiquido: number
+  faixa: string
+}
+
+export function calcularTaxaCartao(
+  formaPagamento: string,
+  bandeira: string | undefined,
+  parcelas: number | undefined,
+  valor: number,
+  taxas: {
+    bandeira: string
+    taxaDebito: number
+    taxaCredito1x: number
+    taxaCredito2a6: number
+    taxaCredito7a12: number
+    taxaCredito13a18: number
+  }[]
+): ResultadoTaxa {
+  if (formaPagamento !== 'CARTAO') {
+    return { taxaPercentual: 0, valorTaxa: 0, valorLiquido: valor, faixa: 'Sem taxa' }
+  }
+  if (!bandeira) {
+    return { taxaPercentual: 0, valorTaxa: 0, valorLiquido: valor, faixa: 'Sem bandeira' }
+  }
+  const taxaConfig = taxas.find(t => t.bandeira === bandeira)
+  if (!taxaConfig) {
+    return { taxaPercentual: 0, valorTaxa: 0, valorLiquido: valor, faixa: 'Bandeira não configurada' }
+  }
+  const p = parcelas || 1
+  let taxaPercentual: number
+  let faixa: string
+  if (p <= 1) {
+    taxaPercentual = taxaConfig.taxaCredito1x
+    faixa = 'Crédito à vista (1x)'
+  } else if (p <= 6) {
+    taxaPercentual = taxaConfig.taxaCredito2a6
+    faixa = 'Parcelado 2x a 6x'
+  } else if (p <= 12) {
+    taxaPercentual = taxaConfig.taxaCredito7a12
+    faixa = 'Parcelado 7x a 12x'
+  } else {
+    taxaPercentual = taxaConfig.taxaCredito13a18
+    faixa = 'Parcelado 13x a 18x'
+  }
+  const valorTaxa = (valor * taxaPercentual) / 100
+  const valorLiquido = valor - valorTaxa
+  return { taxaPercentual, valorTaxa, valorLiquido, faixa }
+}

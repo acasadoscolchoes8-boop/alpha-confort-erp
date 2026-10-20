@@ -2,10 +2,55 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
 // ====== Tipos ======
-export type Role = 'admin' | 'vendedor'
+export type Role = 'admin' | 'vendedor' | 'personalizado'
 export type FormaPagamento = 'PIX' | 'DINHEIRO' | 'CARTAO'
+export type CartaoBandeira = 'Visa' | 'Mastercard' | 'Elo' | 'American Express' | 'Hipercard'
 export type StatusPedido = 'Pendente' | 'Pago' | 'Em Separacao' | 'Em Entrega' | 'Concluido' | 'Cancelado'
 export type StatusEntrega = 'Agendada' | 'Em Rota' | 'Entregue' | 'Falha'
+export type OrigemPedido = 'Loja Fisica' | 'Mercado Livre' | 'Shopee' | 'Amazon' | 'Magalu' | 'Americanas'
+export type MarketplaceId = 'mercadolivre' | 'shopee' | 'amazon' | 'magalu' | 'americanas'
+
+// Permissões por módulo
+export type ModuloSistema =
+  | 'dashboard' | 'pedidos' | 'clientes' | 'produtos' | 'estoque'
+  | 'entregas' | 'notas' | 'marketplaces' | 'financeiro' | 'relatorios' | 'config'
+
+export type Permissao = 'visualizar' | 'editar' | 'nenhuma'
+export type PermissoesModulos = Record<ModuloSistema, Permissao>
+
+export const PERMISSOES_POR_ROLE: Record<Role, PermissoesModulos> = {
+  admin: {
+    dashboard: 'editar', pedidos: 'editar', clientes: 'editar', produtos: 'editar',
+    estoque: 'editar', entregas: 'editar', notas: 'editar', marketplaces: 'editar',
+    financeiro: 'editar', relatorios: 'editar', config: 'editar',
+  },
+  vendedor: {
+    dashboard: 'nenhuma', pedidos: 'editar', clientes: 'nenhuma', produtos: 'nenhuma',
+    estoque: 'visualizar', entregas: 'editar', notas: 'nenhuma', marketplaces: 'nenhuma',
+    financeiro: 'nenhuma', relatorios: 'nenhuma', config: 'nenhuma',
+  },
+  personalizado: {
+    dashboard: 'nenhuma', pedidos: 'visualizar', clientes: 'nenhuma', produtos: 'nenhuma',
+    estoque: 'nenhuma', entregas: 'nenhuma', notas: 'nenhuma', marketplaces: 'nenhuma',
+    financeiro: 'nenhuma', relatorios: 'nenhuma', config: 'nenhuma',
+  },
+}
+
+export interface MarketplaceConfig {
+  id: MarketplaceId
+  nome: string
+  conectado: boolean
+  sellerId?: string
+  accessToken?: string
+  status?: 'ativo' | 'pausado' | 'erro'
+  totalProdutos?: number
+  totalPedidos?: number
+  ultimaSincronizacao?: string
+  cor: string
+  logo: string
+  comissao: string
+  descricao: string
+}
 
 export interface Usuario {
   id: string
@@ -14,6 +59,7 @@ export interface Usuario {
   senha: string
   role: Role
   ativo: boolean
+  permissoes?: PermissoesModulos
 }
 
 export interface Cliente {
@@ -70,6 +116,18 @@ export interface Pedido {
   total: number
   observacoes: string
   precisaEntrega: boolean
+  origem: OrigemPedido
+  codigoExterno?: string
+  parcelas?: number
+  bandeiraCartao?: CartaoBandeira
+  aceite?: {
+    status: 'pendente' | 'aceito' | 'recusado'
+    data?: string
+    ip?: string
+    userAgent?: string
+    assinatura?: string
+    tipo: 'presencial' | 'online'
+  }
 }
 
 export interface Entrega {
@@ -109,6 +167,11 @@ interface AppState {
   pedidos: Pedido[]
   entregas: Entrega[]
   notasFiscais: NotaFiscal[]
+  marketplaces: MarketplaceConfig[]
+  contas: Conta[]
+  taxasBandeiras: TaxaBandeira[]
+  configFinanceira: ConfigFinanceira
+  dadosEmpresa: DadosEmpresa
 
   // CRUD Clientes
   addCliente: (c: Omit<Cliente, 'id' | 'createdAt'>) => void
@@ -120,9 +183,15 @@ interface AppState {
   updateProduto: (id: string, p: Partial<Produto>) => void
   removeProduto: (id: string) => void
 
+  // CRUD Usuários
+  addUsuario: (u: Omit<Usuario, 'id'>) => void
+  updateUsuario: (id: string, u: Partial<Usuario>) => void
+  removeUsuario: (id: string) => void
+
   // Pedidos
   addPedido: (p: Omit<Pedido, 'id' | 'numero' | 'data'>) => void
   updatePedidoStatus: (id: string, status: StatusPedido) => void
+  registrarAceite: (pedidoId: string, dados: { status: 'aceito' | 'recusado'; ip?: string; userAgent?: string; assinatura?: string; tipo: 'presencial' | 'online' }) => void
   removePedido: (id: string) => void
 
   // Entregas
@@ -134,6 +203,25 @@ interface AppState {
 
   // Estoque
   ajustarEstoque: (produtoId: string, quantidade: number, motivo: string) => void
+
+  // Marketplaces
+  updateMarketplace: (id: MarketplaceId, data: Partial<MarketplaceConfig>) => void
+  receberPedidoMarketplace: (pedido: {
+    origem: OrigemPedido
+    clienteNome: string
+    produtoId: string
+    quantidade: number
+    valorUnitario: number
+    codigoExterno: string
+  }) => void
+
+  // Financeiro
+  addConta: (c: Omit<Conta, 'id' | 'createdAt'>) => void
+  updateConta: (id: string, c: Partial<Conta>) => void
+  removeConta: (id: string) => void
+  updateTaxaBandeira: (bandeira: CartaoBandeira, data: Partial<TaxaBandeira>) => void
+  updateConfigFinanceira: (data: Partial<ConfigFinanceira>) => void
+  updateDadosEmpresa: (data: Partial<DadosEmpresa>) => void
 }
 
 const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4)
@@ -415,6 +503,102 @@ export const useStore = create<AppState>()(
     )
   })),
 
+  // ====== Usuários ======
+  addUsuario: (u) => set(state => ({
+    usuarios: [...state.usuarios, { ...u, id: uid() }]
+  })),
+
+  updateUsuario: (id, u) => set(state => ({
+    usuarios: state.usuarios.map(us => us.id === id ? { ...us, ...u } : us),
+    usuarioLogado: state.usuarioLogado?.id === id ? { ...state.usuarioLogado, ...u } : state.usuarioLogado,
+  })),
+
+  removeUsuario: (id) => set(state => ({
+    usuarios: state.usuarios.filter(u => u.id !== id)
+  })),
+
+  // ====== Marketplaces ======
+  updateMarketplace: (id, data) => set(state => ({
+    marketplaces: state.marketplaces.map(m => m.id === id ? { ...m, ...data } : m)
+  })),
+
+  receberPedidoMarketplace: (info) => set(state => {
+    const produto = state.produtos.find(p => p.id === info.produtoId)
+    if (!produto) return state
+    const numero = state.pedidos.length > 0 ? Math.max(...state.pedidos.map(x => x.numero)) + 1 : 1001
+    const subtotal = info.valorUnitario * info.quantidade
+    const novoPedido: Pedido = {
+      id: uid(),
+      numero,
+      clienteId: 'mk_' + uid(),
+      clienteNome: info.clienteNome,
+      vendedorId: 'sistema',
+      vendedorNome: 'Sistema (Marketplace)',
+      data: new Date().toISOString(),
+      itens: [{
+        id: uid(),
+        produtoId: produto.id,
+        modelo: produto.modelo,
+        marca: produto.marca,
+        medida: produto.medida,
+        quantidade: info.quantidade,
+        valorUnitario: info.valorUnitario,
+        subtotal,
+      }],
+      formaPagamento: 'CARTAO',
+      status: 'Pendente',
+      subtotal,
+      desconto: 0,
+      total: subtotal,
+      observacoes: `Pedido recebido via ${info.origem} - ${info.codigoExterno}`,
+      precisaEntrega: true,
+      origem: info.origem,
+      codigoExterno: info.codigoExterno,
+      bandeiraCartao: ['Visa', 'Mastercard', 'Elo', 'American Express', 'Hipercard'][Math.floor(Math.random() * 5)] as CartaoBandeira,
+    }
+    const produtosAtualizados = state.produtos.map(p =>
+      p.id === produto.id ? { ...p, estoqueAtual: Math.max(0, p.estoqueAtual - info.quantidade) } : p
+    )
+    const marketplacesAtualizados = state.marketplaces.map(m =>
+      m.id === mapOrigemToId(info.origem)
+        ? { ...m, totalPedidos: (m.totalPedidos || 0) + 1, ultimaSincronizacao: new Date().toISOString() }
+        : m
+    )
+    return {
+      pedidos: [novoPedido, ...state.pedidos],
+      produtos: produtosAtualizados,
+      marketplaces: marketplacesAtualizados,
+    }
+  }),
+
+  // ====== Aceite ======
+  registrarAceite: (pedidoId, dados) => set(state => ({
+    pedidos: state.pedidos.map(p => p.id === pedidoId ? {
+      ...p,
+      aceite: {
+        status: dados.status,
+        data: new Date().toISOString(),
+        ip: dados.ip,
+        userAgent: dados.userAgent,
+        assinatura: dados.assinatura,
+        tipo: dados.tipo,
+      }
+    } : p)
+  })),
+
+  // ====== Financeiro ======
+  updateTaxaBandeira: (bandeira, data) => set(state => ({
+    taxasBandeiras: state.taxasBandeiras.map(t => t.bandeira === bandeira ? { ...t, ...data } : t)
+  })),
+
+  updateConfigFinanceira: (data) => set(state => ({
+    configFinanceira: { ...state.configFinanceira, ...data }
+  })),
+
+  updateDadosEmpresa: (data) => set(state => ({
+    dadosEmpresa: { ...state.dadosEmpresa, ...data }
+  })),
+
       // Nome da chave no localStorage
       name: 'alpha-comfort-erp',
       storage: createJSONStorage(() => localStorage),
@@ -435,3 +619,14 @@ export const useStore = create<AppState>()(
     })
   )
 )
+
+function mapOrigemToId(origem: OrigemPedido): MarketplaceId {
+  switch (origem) {
+    case 'Mercado Livre': return 'mercadolivre'
+    case 'Shopee': return 'shopee'
+    case 'Amazon': return 'amazon'
+    case 'Magalu': return 'magalu'
+    case 'Americanas': return 'americanas'
+    default: return 'mercadolivre'
+  }
+}
